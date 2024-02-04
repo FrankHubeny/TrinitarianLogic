@@ -1,0 +1,33 @@
+# See docs at: https://mystmd.org/guide/frontmatter
+version: 1
+project:
+  title: Trinitarian Logic
+  subtitle: Relative Identity
+  short_title: null
+  description:  A survey of relative identity and issues standing in the way of accepting Geach's relative identity
+  keywords: [Geach, relative identity, Trinity]
+  thumbnail: null
+  authors: [Frank Hubeny]
+  license: CC-BY-4.0
+  open_access: true
+  github: https://github.com/FrankHubeny/TrinitarianLogic.git
+  abbreviations:
+    GT: Geach's Thesis
+    CMI: Creation Ministries International
+    MT: Masoretic Hebrew Text
+    LXX: Septuagint
+    ANE: Ancient Near East
+  bibliography: [Trinity.bib]
+  math:
+    # Note the 'single quotes'
+    #'\dobs': '\mathbf{d}_\text{obs}'
+site:
+  template: book-theme
+  title:  Trinitarian Logic
+  # options:
+  #   logo: site_logo.png
+  #nav: []
+  #actions:
+  #  - title: Learn More
+  #    url: https://mystmd.org/guide
+  #domains: []
