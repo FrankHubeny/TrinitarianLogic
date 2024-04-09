@@ -28,14 +28,14 @@ class NoSuchNumber(Exception):
     Parameter
     =========
 
-    linenumber: 
-    The line number requested by the call.
+    line: 
+        The line number requested by the call.
     """
-    def __init__(self, linenumber: int):
-        self.linenumber = linenumber
+    def __init__(self, line: int):
+        self.line = line
 
     def __str__(self):
-        return f'The referenced line number {self.linenumber} does not exist in the proof.'
+        return f'The referenced line number {self.line} does not exist in the proof.'
 
 class RebuildFailed(Exception):
     """
@@ -77,7 +77,7 @@ class NotAssumption(Exception):
     def __str__(self):
         return f'The original statement {self.statement} does not match the rebuilt one: {self.rebuiltstatement}.'
 
-class NotSameLevel(Exception):
+class NotSameBlock(Exception):
     """
     This procedure tests the line has the Assumption rule.
 
@@ -85,17 +85,24 @@ class NotSameLevel(Exception):
     =========
 
     start:
-        The start linenumber of the subproof.
+        The start line number of the subproof.
+    startblock:
+        The name of the block the start line is in.
     end:
-        The last linenumber of the subproof.
+        The last line number of the subproof.
+    endblock:
+        The name of the block the end line is in.
     """
 
-    def __init__(self, start, end):
+    def __init__(self, start, startblock, end, endblock):
         self.start = start
+        self.startblock = startblock
         self.end = end
+        self.endblock = endblock
 
     def __str__(self):
-        return f'The statements at lines {self.start} and {self.end} are not at the same level.'
+        return f'The statement at line {self.start} is in block {self.startblock} \
+            but the statement in lin {self.end} is in block {self.endblock}.'
 
 class NotContradiction(Exception):
     """
@@ -116,6 +123,26 @@ class NotContradiction(Exception):
 
     def __str__(self):
         return f'The statements at lines {self.start} and {self.end} are not contradictions.'
+    
+class NotFalse(Exception):
+    """
+    The line number refers to a statement that was claimed to be False, but was not.
+
+    Parameter
+    =========
+
+    line:
+        The number of the line claimed to be False.
+    statement:
+        The startment on the line.
+    """
+
+    def __init__(self, line, statement):
+        self.line = line
+        self.statement = statement
+
+    def __str__(self):
+        return f'The line {self.line} contains {self.statement} not False.'
 
 class UnclassifiedError(Exception):
     """
@@ -134,3 +161,116 @@ class UnclassifiedError(Exception):
 
     def __str__(self):
         return f'An unknown error occurred: {self.notes}' 
+
+class DisjunctNotFound(Exception):
+    """
+    The disjunct from the disjunction on the specified line was not found
+    as one of the assumptions starting a subproof.
+    
+    Parameter
+    =========
+    
+    disjunct:
+        This is the disjunct that was not found.
+    disjunction:
+        This is the full disjunction with all disjuncts.
+    line:
+        This is the line containing the disjunction.
+    """
+
+    def __init__(self, disjunct, disjunction, line):
+        self.disjunct = disjunct
+        self.disjunction = disjunction
+        self.line = line
+
+    def __str__(self):
+        return f'The disjunct {self.disjunct} from the disjunction {self.disjunction} on lin {self.line}\
+            was not found as an assumption of any of the referenced subproofs.'
+    
+class AssumptionNotFound(Exception):
+    """
+    The assumptions do not match the disjuncts of the disjunction.
+    
+    Paramter
+    ========
+    
+    assumption
+        The assumption that does not match one of the disjuncts in the disjunction.
+    disjunction:
+        The disjunction the containing the available disjuncts.
+    """
+
+    def __init__(self, assumption, disjunction):
+        self.assumption = assumption
+        self.disjunction = disjunction
+
+    def __str__(self):
+        return f'The assumption {self.assumption} does not match a disjunct in {self.disjunction}.'
+    
+class ConclusionsNotTheSame(Exception):
+    """
+    The conclusions of subproofs have to be the same for disjunction elimination.  
+    One of the conclusions did not match another.
+        
+    Parameter
+    =========
+        
+    conclusion:
+        The first conclusion to be matched by the others.
+    nonmatching:
+        The conclusion that did not match.
+    """
+
+    def __init__(self, conclusion, nonmatching):
+        self.conclusion = conclusion
+        self.nonmatching = nonmatching
+
+    def __str__(self):
+        return f'The conclusion {self.nonmatching} did not match {self.conclusion}.'
+        
+class NotDisjunction(Exception):
+    """
+    The statement is not a disjunction.
+    
+    Parameter
+    =========
+    
+    line:
+        The line number of the statement in the proof.
+    statement
+        The statement that caused the error.
+    """
+
+    def __init__(self, line, statement, constructed):
+        self.line = line
+        self.statement = statement
+        self.constructed = constructed
+
+    def __str__(self):
+        return f'The statement {self.statement} on line {self.line} is not the disjunction {self.constructed}.'
+    
+class NotSameStatements(Exception):
+    """
+    A logical operator on a statement is being eliminated.  However, the parts of the statement
+    are not the same when rejoined with this operator.  Hence the rule for elimination has
+    been incorrectly apply.
+    
+    Parameter
+    =========
+    
+    statement:
+        The original statement claimed to be a certain kind.
+    rule:
+        The rule being invoked.
+    rebuilt:
+        The rebuilt statement using the operator claimed to be eliminated.
+    """
+
+    def __init__(self, statement, rule, rebuilt):
+        self.statement = statement
+        self.rule = rule
+        self.rebuilt = rebuilt
+
+    def __str__(self):
+        return f'The statement {self.statement} does not apply to the {self.kind} rule when rebuilt as {self.rebuilt}'
+    
