@@ -4,33 +4,32 @@
 
 The module contains the following functions:
 
-- `bicondelim(first, second, comments)` - Given a biconditional and one of the terms return the other term as a
+- `equivalent_elim(first, second, comments)` - Given a biconditional and one of the terms return the other term as a
         new statement.
-- `bicondintro(blockids, comments)` - Construct a biconditional given two blocks showing
+- `equivalent_intro(blockids, comments)` - Construct a biconditional given two blocks showing
         the implications in both directions.
 - `closeblock()` - Closes the current block.
-- `conjelim(line, comments)` - Adds a new line in the proof for each conjunct in the statement at line number `line`.
-- `conjintro(first, second, comments)` - Joins as conjunctions the states at line numbers `first` and `second`
-- `disjelim(line, blockids, comments)` - Check the correctness of a disjunction elimination line before adding it to the proof.
-- `disjintro(newdisjunct, line, comments)` - The newdisjunct statement and the statement at the line number 
+- `and_elim(line, comments)` - Adds a new line in the proof for each conjunct in the statement at line number `line`.
+- `and_intro(first, second, comments)` - Joins as conjunctions the states at line numbers `first` and `second`
+- `or_elim(line, blockids, comments)` - Check the correctness of a disjunction elimination line before adding it to the proof.
+- `or_intro(newdisjunct, line, comments)` - The newdisjunct statement and the statement at the line number 
         become a disjunction.
 - `explosion(expr, line, comments)` - An arbitrary statement is entered in the proof given a false statement preceding it.
-- `impelim(first, second, comments)` - From an implication and its antecedent derive the consequent.
-- `impintro(blockid, comments)` - The command puts an implication as a line in the proof one level below the blockid.
-- `negelim(first, second, comments)` - When two statements are contradictory a false line can be derived.
-- `negintro(blockid, comments)` - When an assumption generates a contradiction, the negation of the assumption
+- `implies_elim(first, second, comments)` - From an implication and its antecedent derive the consequent.
+- `implies_intro(blockid, comments)` - The command puts an implication as a line in the proof one level below the blockid.
+- `not_elim(first, second, comments)` - When two statements are contradictory a false line can be derived.
+- `not_intro(blockid, comments)` - When an assumption generates a contradiction, the negation of the assumption
         can be used as a line of the proof in the next lower block.
 - `openblock(statement)` - Opens a new block.
 - `reit(line, comments)` - A statement that already exists which can be accessed can be reused.
 """
 
-from IPython.display import display, Math, Markdown, Latex, display_markdown, HTML
-from sympy.logic.boolalg import Xor, And, Or, Not, Implies, Equivalent, eliminate_implications
-from sympy.abc import x,y,z,A,B,C,D,E,F
-from sympy import latex, S
+from sympy.logic.boolalg import And, Or, Not, Implies, Equivalent, Xor, Nand, Nor, Xnor
+from sympy.core.symbol import Symbol
 import sympy
-#import sympy.logic.boolalg
+
 import altrea.exception
+
 
 class Proof:
     """
@@ -38,92 +37,92 @@ class Proof:
     in truth functional logic.
     """
 
-    columns = ['Statement', 'Block ID', 'Rule', 'Lines', 'Blocks', 'Status','Comment']
+    columns = ['Statement', 'Level', 'Block', 'Rule', 'Lines', 'Blocks', 'Comment']
     statementindex = 0
-    blockidindex = 1
-    ruleindex = 2
-    linesindex = 3
-    blocksindex = 4
-    statusindex = 5
-    complete = 'Complete'
+    levelindex = 1
+    blockidindex = 2
+    ruleindex = 3
+    linesindex = 4
+    blocksindex = 5
+    commentindex = 6
+    lowestlevel = 0
+    complete = 'COMPLETE     '
     completemessage = 'The proof is complete.'
     goalname = 'Goal'
     premisename = 'Premise'
     assumptionname = 'Assumption'
-    disjintroname = 'DisjIntro'
-    disjelimname = 'DisjElim'
-    conjintroname = 'ConjIntro'
-    conjelimname = 'ConjElim'
-    reitname = 'Reit'
-    impintroname = 'ImpIntro'
-    impelimname = 'ImpElim'
-    negintroname = 'NegIntro'
-    negelimname = 'NegElim'
-    indprfname = 'IndirectProof'
-    bicondintroname = 'BiCondIntro'
-    bicondelimname = 'BiCondElim'
+    or_introname = '$\\vee$ Intro'
+    or_elimname = '$\\vee$ Elim'
+    and_introname = '$\\wedge$ Intro'
+    and_elimname = '$\\wedge$ Elim'
+    reitname = 'Reiteration'
+    implies_introname = '$\\implies$ Intro'
+    implies_elimname = '$\\implies$ Elim'
+    not_introname = '$\\neg$ Intro'
+    not_elimname = '$\\neg$ Elim'
+    indprfname = 'Indirect Proof'
+    equivalent_introname = '$\\Leftrightarrow$ Intro'
+    equivalent_elimname = '$\\Leftrightarrow$ Elim'
+    xor_introname = 'Xor Intro'
+    xor_elimname = 'Xor Elim'
+    nand_introname = 'Nand Intro'
+    nand_elimname = 'Nand Elim'
+    nor_introname = 'Nor Intro'
+    nor_elimname = 'Nor Elim'
+    xnor_introname = 'Xnor Intro'
+    xnor_elimname = 'Xnor Elim'
+    lem_name ='LEM'
     explosionname = 'Explosion'
-    falsename = S.false
+    falsename = sympy.S.false
     warningmessage = 'Warning'
 
-    def __init__(self, goal, premises=[], name: str = '', indx: str ='', comments: str = ''):
+    def __init__(self, 
+                 goal: Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol, 
+                 name: str = '', 
+                 comments: str = ''):
         """Create a Proof object with optional premises, but a specific goal.
         
         Parameters:
-            premises: A list of premises for the proof.
             goal: The goal to be reached by the proof.
             name: The name assigned to the proof.
-            comments: Comments that will go on the proof line associated with the goal."""
+            comments: Comments that will go on the proof line associated with the goal.
+        """
             
         self.name = name
         self.goal = goal
         self.comments = comments
-        self.subproofname = '1'
-        self.subproofcounts = [1]
-        self.subproofs = []
-        self.level = 0
+        self.blockname = '1'
+        self.blockcounts = [1]
+        self.currentblock = [1]
+        self.currentblockid = 0
+        self.blocklist = [[self.lowestlevel, self.currentblock]]
+        self.blocks = []
+        self.level = self.lowestlevel
         self.status = ''
-        self.premises = premises
-        self.lines = [[goal, self.subproofname, self.goalname, '', '', self.status, self.comments]]
-        for i in self.premises:
-            if i == self.goal:
-                self.status = self.complete
-                print(self.completemessage)
-                self.lines.append([i, self.subproofname, self.premisename, '', '', self.status, ''])
-                break
-            else:
-                self.lines.append([i, self.subproofname, self.premisename, '', '', self.status, '']) 
+        self.premises = []
+        self.lines = [[goal, 0, 0, self.goalname, '', '', self.comments]]
 
-    def blockstartend(self, blockid: int | str):
+    def getlevelblock(self, blockid: int | str) -> list:
         """Return the first and last lines of a named block of proof lines.
         
         Parameter:
-            blockid: The name of the block of proof lines.
+            blockid: The id of the block of proof lines.
             
         Yields:
-            The first and last statements of the block of proof lines.
+            A list containing the level and another list contining the first and last lines of the block.
             
         Exceptions:
-            BlockNotAvailable: The block was not found in thee list of blocks.
-            BlockNotClosed: The block was not closed and so is not complete.
+            BlockNotFound: The block id entered does not correspond to an existing block.
         """
 
-        strblockid = self.makestring(blockid)
-        found = S.false
-        for i in self.subproofs:
-            if i[0] == strblockid:
-                start = i[1][0]
-                try:
-                    end = i[1][1]
-                except:
-                    raise altrea.exception.BlockNotClosed(strblockid)
-                found = S.true
-                break
-        if not found:
-            raise altrea.exception.BlockNotAvailable(strblockid)
-        return start, end
+        try:
+            levelblock = self.blocklist[blockid]
+        except:
+            raise altrea.exception.BlockNotFound(blockid)
 
-    def getassumption(self, blockid: int | str):
+        return levelblock
+
+    def getassumption(self, blockid: int | str) -> Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol:
         """Return the first line of a closed block as the assumption of the block of proof lines.
         
         Parameter:
@@ -137,10 +136,10 @@ class Proof:
             BlockNotClosed: The block was not closed and so is not complete.
         """
 
-        assumption, conclusion = self.blockstartend(blockid)
-        return assumption
+        s = self.getlevelblock(blockid)
+        return s[0]
     
-    def getconclusion(self, blockid: int | str):
+    def getconclusion(self, blockid: int | str) -> Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol:
         """Return the last line of a closed block as the conclusion of a block of proof lines.
         
         Parameter:
@@ -154,8 +153,8 @@ class Proof:
             BlockNotClosed: The block was not closed and so is not complete.
         """
 
-        assumption, conclusion = self.blockstartend(blockid)
-        return conclusion
+        s = self.getlevelblock(blockid)
+        return s[1]
     
     def makestring(self, s: int | str) -> str:
         """Return a string if an int has been entered.
@@ -182,9 +181,9 @@ class Proof:
             ScopeError: The block is not accessible.
         """
 
-        block = self.lines[line][self.blockidindex]
-        if self.subproofname != block and len(block) >= len(self.subproofname):
-           raise altrea.exception.ScopeError(line, self.lines[line][self.blockidindex], self.subproofname)
+       # block = self.lines[line][self.blockidindex]
+        #if self.blockname != block and len(block) >= len(self.blockname):
+        #   raise altrea.exception.ScopeError(line, self.lines[line][self.blockidindex], self.blockname)
 
     def checksamelevel(self, first: int, second: int):
         """Check if two statements are at the same level.
@@ -197,12 +196,12 @@ class Proof:
             NotSameLevel: The two statements are not at the same level of the proof.
         """
 
-        firstblock = self.lines[first][self.blockidindex]
-        secondblock = self.lines[second][self.blockidindex]
-        if len(firstblock) != len(secondblock):
-           raise altrea.exception.NotSameLevel(firstblock, secondblock)
+        #block1 = self.lines[first][self.blockidindex]
+        #block2 = self.lines[second][self.blockidindex]
+        #if len(block1) != len(block2):
+        #   raise altrea.exception.NotSameLevel(block1, block2)
 
-    def checkassumption(self, line):
+    def checkassumption(self, line: int):
         """Check if a line represent the assumption that opens a block of proof lines.
         
         Parameter:
@@ -223,9 +222,9 @@ class Proof:
             statement: The last statement at the bottom level of the proof.
         """
 
-        if statement == self.goal and self.subproofname == '1':
+        if statement == self.goal and self.level == self.lowestlevel:
             self.status = self.complete
-            print(self.completemessage)
+            #print(self.completemessage)
 
     def reftwolines(self, first: int, second: int) -> str:
         """A function to join two line numbers together to place in a proof line.
@@ -235,10 +234,12 @@ class Proof:
             second: The second line number to join.
             
         Yields:
-            A string containing the first line number, a comma, and the second line number."""
+            A string containing the first line number, a comma, and the second line number.
+        """
+
         return ''.join([str(first), ', ', str(second)])
     
-    def getstatement(self, line: int):
+    def getstatement(self, line: int) -> Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol:
         """Return a statement from lines of a proof.
         
         Parameter:
@@ -248,126 +249,156 @@ class Proof:
             A statement from the line of the proof is returned.
 
         Exception:
-            NoSuchNumber: The line number is not in the lines of the proof."""
+            NoSuchNumber: The line number is not in the lines of the proof.
+        """
+
         try:
             statement = self.lines[line][self.statementindex]
         except:
             raise altrea.exception.NoSuchNumber(line)
         return statement
+    
+    def getstatementlevelblock(self, line: int) -> list:
+        """Return a statement from lines of a proof.
+        
+        Parameter:
+            line: The line number of the proof.
+            
+        Yields:
+            A list containing the statement, the level and the blockid
+            of the proof line.
 
-    def addstatement(self, statement, rule: str, lines='', blocks='', status='', comments=''):
-        """A a new line to the proof."""
+        Exception:
+            NoSuchNumber: The line number is not in the lines of the proof.
+        """
+
+        try:
+            statement = self.lines[line][self.statementindex]
+        except:
+            raise altrea.exception.NoSuchNumber(line)
+        level = self.lines[line][self.levelindex]
+        blockid = self.lines[line][self.blockidindex]
+        return [statement, level, blockid]  
+
+    def addstatement(self, 
+                     statement: Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol, 
+                     rule: str, 
+                     lines: list = '', 
+                     blocks: list = '', 
+                     comments: str =''):
+        """A a new line to the proof.
+        
+        Parameters:
+            statement: The statement to add to the proof.
+            rule: The rule justifying the inclusion of the statement.
+            lines: The lines justifying the rule.
+            blocks: The blocks justifying the rule.
+            comments: Comments added to this line of the proof.
+
+        Exceptions:
+            StringType: The expression is a string not a sympy boolean type.
+        """
 
         if self.status == self.complete:
             pass
         else:
-            self.checkcomplete(statement)
-            self.lines.append([statement, self.subproofname, rule, lines, blocks, status, comments])
+            if type(statement) == str:
+                raise altrea.exception.StringType(statement)
+            else:
+                self.checkcomplete(statement)
+                newcomment = comments
+                if self.status == self.complete:
+                    newcomment = ''.join([self.complete, " ", comments])
+                self.lines.append([statement, 
+                                   self.level, 
+                                   self.currentblockid, 
+                                   rule, 
+                                   lines, 
+                                   blocks, 
+                                   newcomment]
+                                   )
 
-    def addpremise(self, premise, comments: str = ''):
-        for i in self.lines:
-            if i[self.ruleindex] not in [self.goalname, self.premisename]:
-                raise altrea.exception.PremiseBeginsProof(premise)
+    def addpremise(self, 
+                   premise: Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol, 
+                   comments: str = ''):
+        """Add a premise to the proof.
+        
+        Parameters:
+            premise: The premise to add to the proof.
+            comments: Comments for this line of the proof.
+
+        Exceptions:
+            PremiseAtLowestLevel: A premise can only be added at the lowest level of the proof.
+        """
+
+        # for i in self.lines:
+        #     if i[self.ruleindex] not in [self.goalname, self.premisename]:
+        #         raise altrea.exception.PremiseBeginsProof(premise)
+        if self.level > 0:
+            raise altrea.exception.PremiseAtLowestLevel(premise)
+        self.premises.append(premise)
         self.addstatement(statement=premise,
                           rule=self.premisename,
                           comments=comments)
         
-    def bicondelim(self, first: int, second: int, comments: str = ''):
+    def equivalent_elim(self, first: int, second: int, comments: str = ''):
         pass
-        # """"""
-        # test = []
-        # firststatement = self.getstatement(first)
-        # secondstatement = self.getstatement(second)
-        # self.checkblock(first)
-        # for c in biconditional.args:
-        #     test.append(c)
-        # testbiconditional = S.true
-        # for t in test:
-        #     testbiconditional = And(testbiconditional, t)
-        # if testbiconditional != biconditional:
-        #     raise altrea.exception.NotSameStatements(biconditional, self.bicondelimname, testbiconditional)
-        # for statement in biconditional.args:
-        #     self.addstatement(statement=statement, 
-        #                       rule=self.bicondelimname, 
-        #                       lines=str(first),
-        #                       comments=comments
-        #                      )
 
-    def bicondintro(self, blockids: list, comments: str = ''):
+    def equivalent_intro(self, blockids: list, comments: str = ''):
         pass
 
     def closeblock(self):
         """Closes the block of statements that the proof is currently in.
         
-        Example:
-        >>> from altrea.tf import Proof
-        >>> ex = Proof([A], C >> A, 'Example using closeblock')
-        >>> ex.openblock(C)
-        >>> ex.reit(1)
-        >>> ex.closeblock()
-        >>> ex.impintro('11')
-        The proof is complete.  
+        Examples:
+            >>> from altrea.tf import Proof
+            >>> ex = Proof([A], C >> A, 'Example using closeblock')
+            >>> ex.openblock(C)
+            >>> ex.reit(1)
+            >>> ex.closeblock()
+            >>> ex.implies_intro('11')
+            The proof is complete.  
         """
 
         end = len(self.lines)-1
         blockid = self.lines[end][self.blockidindex]
-        for i in self.subproofs:
-            if i[0] == blockid:
-                i[1].append(end)
-                break
-        self.level -= 1
-        self.subproofname = self.subproofname[:-1]
+        if blockid == 0:
+            raise altrea.exception.CannotCloseStartingBlock()
+        else:
+            self.currentblock.append(end)
+            self.level -= 1
+            for i in range(len(self.blocklist)):
+                if self.blocklist[i][0] == self.level and len(self.blocklist[i][1]) == 1:
+                    self.currentblock = self.blocklist[i][1]
+                    self.currentblockid = i
+                    break
 
-    def conjelim(self, line: int, comments: str = ''):
+    def and_elim(self, line: int, comments: str = ''):
         """A conjunction is split into its individual conjuncts.
         
         Arguments:
             line: The line number of the conjunction to be split.
 
         Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
             NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
             ScopeError: The referenced statement is not accessible.
         """
 
-        # Test 1: The statement must exist.
-        conjunction = self.getstatement(line)
-
-        # Test 2: The statement must be in a block that can be accessed.
+        s1 = self.getstatement(line)
         self.checkblock(line)
-
-        # Test 3: The statement must be a conjunction.
-        if type(conjunction) != And:
-            raise altrea.exception.NotConjunction(line, conjunction)
-            # self.addstatement(statement=conjunction,
-            #                   rule=self.conjelimname,
-            #                   lines=str(line),
-            #                   status=self.warningmessage,
-            #                   comments='not a conjunction'
-            #                   )
+        if type(s1) != And:
+            raise altrea.exception.NotConjunction(line, s1)
         else:
-            conjuncts = sympy.logic.boolalg.conjuncts(conjunction)
+            conjuncts = sympy.logic.boolalg.conjuncts(s1)
             for statement in conjuncts:
                 self.addstatement(statement=statement, 
-                                  rule=self.conjelimname, 
+                                  rule=self.and_elimname, 
                                   lines=str(line),
                                   comments=comments
                                  )
             
-    def conjintro(self, first: int, second: int, comments: str = ''):
+    def and_intro(self, first: int, second: int, comments: str = ''):
         """The statement at first line number is joined with And to the statement at second
         line number.
 
@@ -376,148 +407,99 @@ class Proof:
             second: The line number of the second conjunct.
 
         Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
-            NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
-            ScopeError: The referenced statement is not accessible.
+            ScopeError: The lines must be in a level less than or equal to the current level.
         """
 
-        # Test 1: The two statements must exist.
-        firstconjunct = self.getstatement(first)
-        secondconjunct = self.getstatement(second)
+        s1 = self.getstatementlevelblock(first)
+        s2 = self.getstatementlevelblock(second)
+        if self.level < s1[1]:
+            raise altrea.exception.ScopeError(first)
+        elif self.level < s2[1]:
+            raise altrea.exception.ScopeError(second)
+        else:
+            expr = And(s1[0], s2[0])
+            self.addstatement(statement=expr, 
+                              rule=self.and_introname, 
+                              lines=self.reftwolines(first, second), 
+                              comments=comments
+                             )
 
-        # Test 2: They must be in blocks which can be accessed.
-        self.checkblock(first)
-        self.checkblock(second)
-
-        statement = And(firstconjunct, secondconjunct)
-        self.addstatement(statement=statement, 
-                          rule=self.conjintroname, 
-                          lines=self.reftwolines(first, second), 
-                          comments=comments
-                         )
-
-    def disjelim(self, line: int, blockids: list, comments: str = ''):
+    def or_elim(self, line: int, blockids: list, comments: str = ''):
         """Check the correctness of a disjunction elimination line before adding it to the proof.
         
         Exceptions:
             AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
             ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
             ScopeError: The referenced statement is not accessible.
         """
 
-        # Test 1: The statement that is being eliminated has to be a valid statement.
-        disj = self.getstatement(line)
-
-        # Test 2: The statement must in a block that can be accessed.
-        self.checkblock(line)
-
-        # Test 3: The statement has to be a disjunction.
-        if type(disj) != Or:
-            raise altrea.exception.NotDisjunction(line, disj)
-        
-        # Setup for the next tests 4, 5, 6
+        s1 = self.getstatementlevelblock(line)
+        #self.checkblock(line)
+        if type(s1[0]) != Or:
+            raise altrea.exception.NotDisjunction(line, s1[0])
         assumptions = []
         conclusions = []
+        firstlevel = blockids[0]
+        if firstlevel < s1[1] + 1:
+            raise altrea.exception.ScopeError(line, firstlevel, s1[1])
         for i in blockids:
-            start, end = self.blockstartend(i)
-            assumptions.append(self.getstatement(start))
-            conclusions.append(self.getstatement(end))
-
-        # Test 4: Each disjunct must be an assumption in a subproof.
-        for j in disj.args:
-            found = S.false
+            b = self.getlevelblock(i)
+            if b[0] != firstlevel:
+                raise altrea.exception.NotSameLevel(firstlevel, b[0])
+            assumptions.append(self.getstatement(b[1][0]))
+            conclusions.append(self.getstatement(b[1][1]))
+        for j in s1[0].args:
+            found = sympy.S.false
             for k  in assumptions:
                 if k == j:
-                    found = S.true
+                    found = sympy.S.true
             if not found:
-                raise altrea.exception.DisjunctNotFound(j, disj, line)
-            
-        # Test 5: The assumptions of each subproof must be a disjunct in the disjunction.
+                raise altrea.exception.DisjunctNotFound(j, s1, line)
         for j in assumptions:
-            found = S.false
-            for k in disj.args:
+            found = sympy.S.false
+            for k in s1[0].args:
                 if k == j:
-                    found = S.true
+                    found = sympy.S.true
             if not found:
-                raise altrea.exception.AssumptionNotFound(k, disj)
-            
-        # Test 6: All of the conclusions of the subproofs must be identical.
+                raise altrea.exception.AssumptionNotFound(k, s1)
         for i in conclusions:
             if i != conclusions[0]:
                 raise altrea.exception.ConclusionsNotTheSame(conclusions[0], k)
-
         self.addstatement(statement=conclusions[0],
-                          rule=self.disjelimname,
-                          blocks=blockids,
+                          rule=self.or_elimname,
+                          #blocks=blockids,
+                          blocks=self.reftwolines(blockids[0], blockids[1]), 
                           comments=comments
                           )
             
-    def disjintro(self, newdisjunct, line: int, comments: str = ''):
+    def or_intro(self, 
+                  disjunct: Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol, 
+                  line: int, 
+                  comments: str = ''):
         """The newdisjunct statement and the statement at the line number become a disjunction.
         
         Parameters:
-            newdisjunct: A statement that will be used in the disjunction.
+            disjunct: A statement that will be used in the disjunction.
             line: The line number of the statement that will be the other disjunct.
 
         Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
             ScopeError: The referenced statement is not accessible.
         """
 
-        # Test 1: The statment must exist.
-        startdisjunct = self.getstatement(line)
-
-        # Test 2: The statement must in a block that can be accessed.
+        s1 = self.getstatement(line)
         self.checkblock(line)
-
-        statement = Or(startdisjunct, newdisjunct)
-        self.addstatement(statement=statement, 
-                          rule=self.disjintroname, 
+        expr = Or(s1, disjunct)
+        self.addstatement(statement=expr, 
+                          rule=self.or_introname, 
                           lines=str(line),
                           comments=comments
                          )
 
-    def explosion(self, expr, line: int, comments: str = ''):
+    def explosion(self, 
+                  expr: Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol, 
+                  comments: str = ''):
         """An arbitrary statement is entered in the proof given a false statement preceding it.
         
         Parameters:
@@ -526,34 +508,27 @@ class Proof:
             comments: A optional comment for this line of the proof.
 
         Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
             NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
-            ScopeError: The referenced statement is not accessible.
-            """
-        statement = self.getstatement(line)
-        if statement != self.falsename:
-            raise altrea.exception.NotFalse(line, statement)
+            BlockClose: A line cannot be added to a closed block.
+        """
+        
+        line = len(self.lines) - 1
+        blockid = self.lines[line][self.blockidindex]
+        if len(self.blocklist[blockid][1]) == 2:
+            raise altrea.exception.BlockClosed(blockid)
         else:
-            self.addstatement(statement=expr,
-                              rule=self.explosionname,
-                              lines=line,
-                              comments=comments
-                              )
+            s1 = self.getstatement(line)
+            if s1 != self.falsename:
+                raise altrea.exception.NotFalse(line, s1)
+            else:
+                self.addstatement(statement=expr,
+                                  rule=self.explosionname,
+                                  lines=line,
+                                  comments=comments
+                                 )
             
-    def impelim(self, first: int, second: int, comments: str = ''):
+    def implies_elim(self, first: int, second: int, comments: str = ''):
         """From an implication and its antecedent derive the consequent.
         
         Parameters:
@@ -561,39 +536,21 @@ class Proof:
             second: The line number of the second statement.
 
         Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
             NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
             ScopeError: The referenced statement is not accessible.
         """
 
-        # Test 1: The statements must exist.
         s1 = self.getstatement(first)
         s2 = self.getstatement(second)
-
-        # Test 2: The statements must be in blocks that can be accessed.
-        self.checkblock(first)
-        self.checkblock(second)
-
-        # Test 3: Check that the antecedent of the implication equals the other statement.
+        #self.checkblock(first)
+        #self.checkblock(second)
         if type(s2) == Implies:
             if s1 != s2.args[0]:
                 raise altrea.exception.NotAntecedent(s1, s2)
             else:
                 self.addstatement(statement=s2.args[1], 
-                                  rule=self.impelimname, 
+                                  rule=self.implies_elimname, 
                                   lines=self.reftwolines(first, second),
                                   comments=comments
                                  )
@@ -602,12 +559,12 @@ class Proof:
                 raise altrea.exception.NotAntecedent(s2, s1)
             else:
                 self.addstatement(statement=s1.args[1], 
-                                  rule=self.impelimname, 
+                                  rule=self.implies_elimname, 
                                   lines=self.reftwolines(first, second),
                                   comments=comments
                                  )
 
-    def impintro(self, blockid: int | str, comments: str = ''):
+    def implies_intro(self, blockid: int | str, comments: str = ''):
         """The command puts an implication as a line in the proof one level below the blockid.
         
         Parameters:
@@ -618,80 +575,39 @@ class Proof:
             AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
             BlockNotAvailable: The block is outside the scope of the current block.
             BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
             NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
             NotSameBlock: Two referenced statements are not from the same block.
             NotSameLevel: The two blocks are not at the same level.
             ScopeError: The referenced statement is not accessible.
         """
-        strblockid = self.makestring(blockid)
-        (start, end) = self.blockstartend(strblockid)
-        self.checksamelevel(start, end)
-        self.checkassumption(start)
-        antecedent = self.getstatement(start)
-        consequent = self.getstatement(end)
-        statement = Implies(antecedent, consequent)
-        self.addstatement(statement=statement, 
-                          rule=self.impintroname, 
-                          blocks=strblockid,
-                          comments=comments
-                         )
 
-    def openblock(self, statement):
-        """Opens a uniquely identified block of statements with an assumption.
-        
-        Example:
-        >>> from altrea.tf import Proof
-        >>> ex = Proof([A], C >> A, 'Example using openblock')
-        >>> ex.openblock(C)
-        >>> ex.reit(1)
-        >>> ex.closeblock()
-        >>> ex.impintro('11')
-        The proof is complete.
+        levelblock = self.getlevelblock(blockid)
+        if levelblock[0] != self.level + 1:
+            raise altrea.exception.ScopeError(blockid)
+        else:
+            antecedent = self.getstatement(levelblock[1][0])
+            consequent = self.getstatement(levelblock[1][1])
+            expr= Implies(antecedent, consequent)
+            self.addstatement(statement=expr, 
+                              rule=self.implies_introname, 
+                              blocks=blockid,
+                              comments=comments
+                             )
 
-        AParameters:
-            statement: The assumption that starts the block of derived statements.
+    def nand_elim(self, line: int, comments: str = ''):
+        pass
 
-        Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
-            NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
-            ScopeError: The referenced statement is not accessible.
-        """
-        self.level += 1
-        try:
-            self.subproofname += str(self.subproofcounts[self.level] + 1)
-            self.subproofcounts[self.level] += 1
-        except:
-            self.subproofcounts.append(1)
-            self.subproofname += str(self.subproofcounts[self.level])
-        start = len(self.lines)
-        self.subproofs.append([self.subproofname, [start]])
-        self.addstatement(statement=statement, 
-                          rule=self.assumptionname
-                         )
-                
-    def negelim(self, first: int, second: int, comments: str = ''):
+    def nand_intro(self, line: int, comments: str = ''):
+        pass
+
+    def nor_elim(self, line: int, comments: str = ''):
+        pass
+
+    def nor_intro(self, line: int, comments: str = ''):
+        pass
+
+    def not_elim(self, first: int, second: int, comments: str = ''):
         """When two statements are contradictory a false line can be derived.
         
         Parameters:
@@ -700,36 +616,22 @@ class Proof:
             comments: An optional comment for this line.
 
         Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
             NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
             ScopeError: The referenced statement is not accessible.                       
         """
-        
         s1 = self.getstatement(first)
         s2 = self.getstatement(second)
         if Not(s1) == s2:
             self.addstatement(statement=self.falsename, 
-                              rule=self.negelimname, 
+                              rule=self.not_elimname, 
                               lines=self.reftwolines(first, second),
                               comments=comments
                              )
         else:
             raise altrea.exception.NotContradiction(first, second)
         
-    def negintro(self, blockid: int | str, comments: str = ''):
+    def not_intro(self, blockid: int | str, comments: str = ''):
         """When an assumption generates a contradiction, the negation of the assumption
         can be used as a line of the proof in the next lower block.
         
@@ -739,40 +641,62 @@ class Proof:
             blockid: The name of the block containing the assumption and contradiction.
 
         Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
             BlockNotAvailable: The block is outside the scope of the current block.
             BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
             ScopeError: The referenced statement is not accessible.
         """
-        strblockid = self.makestring(blockid)
-
-        # Test 1: Check that the block exists, is accessible and is closed.
-        start, end = self.blockstartend(strblockid)
-        s1 = self.getstatement(start)
-        s2 = self.getstatement(end)
-
-        # Test 2: Check that the last line is false: a contradiction
+        
+        levelblock = self.getlevelblock(blockid)
+        s1 = self.getstatement(levelblock[1][0])
+        s2 = self.getstatement(levelblock[1][1])
         if s2 != self.falsename:
-            raise altrea.exception.NotFalse(end, s2)
+            raise altrea.exception.NotFalse(blockid, s2)
         else:
             self.addstatement(statement=Not(s1), 
-                              rule=self.negintroname,
+                              rule=self.not_introname,
                               blocks=strblockid,
                               comments=comments
                               )      
 
+    def openblock(self, 
+                  statement: Not | And | Or | Implies | Equivalent | Xor | Nand | Nor | Xnor | Symbol,
+                  comments: str = ''):
+        """Opens a uniquely identified block of statements with an assumption.
+        
+        Example:
+            >>> from altrea.tf import Proof
+            >>> ex = Proof([A], C >> A, 'Example using openblock')
+            >>> ex.openblock(C)
+            >>> ex.reit(1)
+            >>> ex.closeblock()
+            >>> ex.implies_intro('11')
+            The proof is complete.
+
+        Parameters:
+            statement: The assumption that starts the block of derived statements.
+        """
+        if self.status != self.complete:
+            self.level += 1
+            nextline = len(self.lines)
+            self.currentblock = [nextline]
+            self.blocklist.append([self.level, self.currentblock])
+            self.currentblockid = len(self.blocklist) - 1
+
+            try:
+                self.blockname += str(self.blockcounts[self.level] + 1)
+                self.blockcounts[self.level] += 1
+            except:
+                self.blockcounts.append(1)
+                self.blockname += str(self.blockcounts[self.level])
+            start = len(self.lines)
+            self.blocks.append([self.blockname, [start]])
+
+            self.addstatement(statement=statement, 
+                              rule=self.assumptionname,
+                              comments=comments
+                             )
+        
     def reit(self, line: int, comments: str = ''):
         """A statement that already exists which can be accessed can be reused.
 
@@ -785,38 +709,32 @@ class Proof:
             >>> ex.openblock(C)
             >>> ex.reit(1)
             >>> ex.closeblock()
-            >>> ex.impintro('11')
+            >>> ex.implies_intro('11')
             The proof is complete.
 
         Exceptions:
-            AssumptionNotFound: The assumption from a block does not match a disjunct of the disjunction.
-            BlockNotAvailable: The block is outside the scope of the current block.
-            BlockNotClosed: The block cannot be accessed until it is closed.
-            ConclusionsNotTheSame: The conclusions of blocks are not the same.
-            DisjunctNotFound: The disjunct from the disjunction on the specified line was not found
-                as one of the assumptions starting a block.
             NoSuchNumber: The referenced line does not exist in the proof.
-            NotAntecedent: The statement is not the antecedent of the implication.
-            NotAssumption: The referenced statement is not an assumption, the first line of a block.
-            NotConjunction: The statement is not a conjunction.
-            NotContradiction: Two referenced statements are not contradictions.
-            NotDisjunction: The statement is not a disjunction.
-            NotFalse: The referenced statement is not False.
-            NotSameBlock: Two referenced statements are not from the same block.
-            NotSameLevel: The two blocks are not at the same level.
             ScopeError: The referenced statement is not accessible.
 
         """
         
-        # Test 1: The statement must exist.
         statement = self.getstatement(line)
-
-        # Test 2: The statement must be in a block which can be accessed.
-        self.checkblock(line)
-
         self.addstatement(statement=statement, 
                           rule=self.reitname, 
                           lines=str(line),
                           comments=comments
                          )
         
+    def xnor_elim(self, line: int, comments: str = ''):
+        pass
+
+    def xnor_intro(self, line: int, comments: str = ''):
+        pass
+
+    def xor_elim(self, line: int, comments: str = ''):
+        pass
+
+    def xor_intro(self, line: int, comments: str = ''):
+        pass
+
+    

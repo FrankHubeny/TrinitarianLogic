@@ -1,11 +1,11 @@
 This site contains the project documentation for the
-`calculator` project that is a toy module used in the
-Real Python tutorial
-[Build Your Python Project Documentation With MkDocs](
-    https://realpython.com/python-project-documentation-with-mkdocs/).
-Its aim is to give you a framework to build your
-project documentation using Python, MkDocs,
-mkdocstrings, and the Material for MkDocs theme.
+`altrea` python project designed to explore Alternative Reasonings.
+It begings with a description of classical truth function and
+first order with absolute identity logics.  It next considers
+baed on that foundations alternatives to this classical reasoning.
+The alternatives include modal logics, quantum logics,
+intuitionist mathematical logics and relative identity logics.
+A framework for exploring other logics is provided as well.
 
 ## Table Of Contents
 
@@ -15,7 +15,7 @@ in the [Diátaxis documentation framework](https://diataxis.fr/)
 and consists of four separate parts:
 
 1. [Tutorials](tutorials.md)
-2. [How-To Guides](how-to-guides.md)
+2. [How-To Guides](how-to-guide.md)
 3. [Reference](reference.md)
 4. [Explanation](explanation.md)
 
@@ -24,11 +24,13 @@ your use case by looking at the different pages.
 
 ## Project Overview
 
-::: calculator
+::: AltRea
 
 ## Acknowledgements
 
-I want to thank my house plants for providing me with
-a negligible amount of oxygen each day. Also, I want
-to thank the sun for providing more than half of their
-nourishment free of charge.
+The project uses the following python packages with their dependencies:
+- `sympy` for Symbols and Boolean algebra 
+- `pandas` to help display data.
+
+This documentation was built using `mkdocs` based on the explanation from
+Martin Breuss [Build Your Python Project Documentation With MkDocs](https://realpython.com/python-project-documentation-with-mkdocs/).
